@@ -1,11 +1,15 @@
 ﻿#include <iostream>
 #include <audioclient.h>
 #include <mmdeviceapi.h>
-#include <windows.h>
 #include <comdef.h>
 #include <vector>
 #include <chrono>
+#include <algorithm>
 #include <nlohmann/json.hpp>
+
+#define NOMINMAX
+#include <windows.h>
+#undef NOMINMAX
 
 using json = nlohmann::json;
 
@@ -93,11 +97,15 @@ IAudioCaptureClient *GetCaptureClient(IAudioClient *audioClient)
     return captureClient;
 }
 
-json ProcessAudioData(BYTE *data, UINT32 numFramesAvailable)
+json ProcessAudioData(BYTE *data, UINT32 numFramesAvailable, int sampleCount)
 {
     json mergedAmplitudeArray = json::array();
 
-    for (UINT32 i = 0; i < numFramesAvailable && i < 64; ++i)
+    UINT32 sampleCountChannel = static_cast<UINT32>(sampleCount / 2);
+
+    UINT32 framesToProcess = std::min<UINT32>(numFramesAvailable, sampleCountChannel);
+
+    for (UINT32 i = 0; i < framesToProcess; ++i)
     {
         int16_t leftSample = *(int16_t *)(data + i * sizeof(int16_t) * 2);
         float leftAmplitude = static_cast<float>(abs(leftSample)) / INT16_MAX;
@@ -112,7 +120,7 @@ json ProcessAudioData(BYTE *data, UINT32 numFramesAvailable)
     return mergedAmplitudeArray;
 }
 
-void CaptureAudio()
+void CaptureAudio(int sampleCount, int interval)
 {
     IMMDevice *device = GetDefaultAudioEndpoint();
     IAudioClient *audioClient = InitializeAudioClient(device);
@@ -139,7 +147,7 @@ void CaptureAudio()
                 break;
             }
 
-            json outputJson = ProcessAudioData(data, numFramesAvailable);
+            json outputJson = ProcessAudioData(data, numFramesAvailable, sampleCount);
 
             std::cout << outputJson.dump(-1) << std::endl;
             std::cout.flush();
@@ -155,7 +163,7 @@ void CaptureAudio()
             break;
         }
 
-        Sleep(50);
+        Sleep(interval);
     }
 
     audioClient->Stop();
@@ -164,13 +172,47 @@ void CaptureAudio()
     device->Release();
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+
     InitializeCOM();
+
+    int sampleCount = 64;
+    int interval = 15;
+
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strcmp(argv[i], "-samples") == 0)
+        {
+            if (i + 1 < argc)
+            {
+                sampleCount = atoi(argv[i + 1]);
+                i++;
+            }
+            else
+            {
+                std::cerr << "No value provided for [ -samples ]" << std::endl;
+                return 1;
+            }
+        }
+        else if (strcmp(argv[i], "-interval") == 0)
+        {
+            if (i + 1 < argc)
+            {
+                interval = atoi(argv[i + 1]);
+                i++;
+            }
+            else
+            {
+                std::cerr << "No value provided for [ -interval ]" << std::endl;
+                return 1;
+            }
+        }
+    }
 
     try
     {
-        CaptureAudio();
+        CaptureAudio(sampleCount, interval);
     }
     catch (...)
     {
