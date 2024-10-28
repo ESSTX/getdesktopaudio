@@ -101,20 +101,16 @@ json ProcessAudioData(BYTE *data, UINT32 numFramesAvailable, int sampleCount)
 {
     json mergedAmplitudeArray = json::array();
 
-    UINT32 sampleCountChannel = static_cast<UINT32>(sampleCount / 2);
-
-    UINT32 framesToProcess = std::min<UINT32>(numFramesAvailable, sampleCountChannel);
+    UINT32 framesToProcess = std::min<UINT32>(numFramesAvailable, sampleCount / 2);
 
     for (UINT32 i = 0; i < framesToProcess; ++i)
     {
-        int16_t leftSample = *(int16_t *)(data + i * sizeof(int16_t) * 2);
-        float leftAmplitude = static_cast<float>(abs(leftSample)) / INT16_MAX;
 
-        int16_t rightSample = *(int16_t *)(data + i * sizeof(int16_t) * 2 + sizeof(int16_t));
-        float rightAmplitude = static_cast<float>(abs(rightSample)) / INT16_MAX;
+        float leftSample = *(float *)(data + i * sizeof(float) * 2);
+        float rightSample = *(float *)(data + i * sizeof(float) * 2 + sizeof(float));
 
-        mergedAmplitudeArray.push_back(leftAmplitude);
-        mergedAmplitudeArray.push_back(rightAmplitude);
+        mergedAmplitudeArray.push_back(fabs(leftSample));
+        mergedAmplitudeArray.push_back(fabs(rightSample));
     }
 
     return mergedAmplitudeArray;
