@@ -3,8 +3,8 @@
 #include <mmdeviceapi.h>
 #include <comdef.h>
 #include <vector>
-#include <chrono>
 #include <algorithm>
+#include <cmath>
 #include <nlohmann/json.hpp>
 
 #define NOMINMAX
@@ -97,23 +97,28 @@ IAudioCaptureClient *GetCaptureClient(IAudioClient *audioClient)
     return captureClient;
 }
 
-json ProcessAudioData(BYTE *data, UINT32 numFramesAvailable, int sampleCount)
+json ProcessAudioData(BYTE *data, UINT32 numFramesAvailable, int samplesCount)
 {
-    json mergedAmplitudeArray = json::array();
+    std::vector<float> audioSamples(samplesCount * 2, 0.0f);
 
-    UINT32 framesToProcess = std::min<UINT32>(numFramesAvailable, sampleCount / 2);
+    UINT32 framesToProcess = std::min<UINT32>(numFramesAvailable, 64);
 
     for (UINT32 i = 0; i < framesToProcess; ++i)
     {
-
         float leftSample = *(float *)(data + i * sizeof(float) * 2);
         float rightSample = *(float *)(data + i * sizeof(float) * 2 + sizeof(float));
 
-        mergedAmplitudeArray.push_back(fabs(leftSample));
-        mergedAmplitudeArray.push_back(fabs(rightSample));
+        audioSamples[i] = std::max<float>(0.0f, std::min<float>(1.0f, std::fabs(leftSample)));
+        audioSamples[i + samplesCount] = std::max<float>(0.0f, std::min<float>(1.0f, std::fabs(rightSample)));
     }
 
-    return mergedAmplitudeArray;
+    json audioArray = json::array();
+    for (const auto &sample : audioSamples)
+    {
+        audioArray.push_back(sample);
+    }
+
+    return audioArray;
 }
 
 void CaptureAudio(int sampleCount, int interval)
