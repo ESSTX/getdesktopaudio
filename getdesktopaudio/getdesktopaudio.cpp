@@ -121,7 +121,7 @@ json ProcessAudioData(BYTE *data, UINT32 numFramesAvailable, int samplesCount)
     return audioArray;
 }
 
-void CaptureAudio(int sampleCount, int interval)
+void CaptureAudio(int samplesCount, int interval)
 {
     IMMDevice *device = GetDefaultAudioEndpoint();
     IAudioClient *audioClient = InitializeAudioClient(device);
@@ -148,7 +148,7 @@ void CaptureAudio(int sampleCount, int interval)
                 break;
             }
 
-            json outputJson = ProcessAudioData(data, numFramesAvailable, sampleCount);
+            json outputJson = ProcessAudioData(data, numFramesAvailable, samplesCount);
 
             std::cout << outputJson.dump(-1) << std::endl;
             std::cout.flush();
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 
     InitializeCOM();
 
-    int sampleCount = 64;
+    int samplesCount = 64;
     int interval = 15;
 
     for (int i = 1; i < argc; ++i)
@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
         {
             if (i + 1 < argc)
             {
-                sampleCount = atoi(argv[i + 1]);
+                samplesCount = atoi(argv[i + 1]);
                 i++;
             }
             else
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 
     try
     {
-        CaptureAudio(sampleCount, interval);
+        CaptureAudio(samplesCount, interval);
     }
     catch (...)
     {
